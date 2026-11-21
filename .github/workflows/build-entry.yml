@@ -110,8 +110,13 @@ jobs:
         if: always()
         run: |
           mkdir -p artifacts
-          ROLLOUT=$(ls -t ~/.codex/sessions/*/rollout-*.jsonl 2>/dev/null | head -1 || true)
-          if [ -n "$ROLLOUT" ]; then cp "$ROLLOUT" artifacts/rollout.jsonl; echo "rollout: $ROLLOUT"; else echo "NO ROLLOUT FOUND"; ls -R ~/.codex/sessions 2>/dev/null | head -20 || true; fi
+          # Codex 0.170 stores sessions under dated subfolders
+          # (~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl), so a one-level
+          # glob misses them. Search recursively, newest first; fail loudly
+          # if none is found — an entry without its transcript cannot be
+          # bundled or submitted, so a silent miss wastes the whole run.
+          ROLLOUT=$(find ~/.codex/sessions -name 'rollout-*.jsonl' -type f -exec ls -t {} + 2>/dev/null | head -1 || true)
+          if [ -n "$ROLLOUT" ]; then cp "$ROLLOUT" artifacts/rollout.jsonl; echo "rollout: $ROLLOUT"; else echo "ERROR: NO ROLLOUT FOUND"; ls -R ~/.codex/sessions 2>/dev/null | head -30 || true; exit 1; fi
           if [ -d work/repo/.git ]; then tar czf artifacts/repo.tar.gz -C work repo; echo "repo tarball OK"; fi
           cp work/codex-build.log artifacts/ 2>/dev/null || true
           ls -la artifacts/

@@ -1,0 +1,125 @@
+# PoC: build a make.fun entry on GitHub Actions, submit from the VM.
+#
+# Design (21 Nov 2026):
+# - The runner ONLY builds: download kit, init repo, run Codex (Xingchi
+#   gpt-6.1-sol), produce the entry repo + the Codex rollout session.
+# - The runner uploads both as an artifact. Check + bundle + submit happen
+#   on the operator VM, where the make.fun account credentials live.
+# - The ONLY secret this repo needs is XINGCHI_API_KEY (the Xingchi API key,
+#   shared across accounts). No make.fun key, keypair, or wallet secret is
+#   ever stored here.
+# - Repo init uses --wallet <account wallet address> (public): the drand
+#   anchor names the account's own wallet, so the repo_owner check passes
+#   at submit without any keypair on the runner.
+#
+# Run: Actions tab > build-entry-poc > Run workflow.
+# Needs the XINGCHI_API_KEY repo secret (Settings > Secrets and variables >
+# Actions). Without it the job fails fast with a clear message.
+
+name: build-entry-poc
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPETITION: news-image-20261120
+      WALLET: 9nD2X9j4qazcEqhbMvNhBx8uCe4a4Buf4xHx1EwQcfTv
+      HANDLE: quiet-owl-40
+    steps:
+      - name: Check out PoC repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install system deps (DejaVu fonts, Pillow)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-dejavu-core
+          python3 -m pip install --quiet --break-system-packages pillow
+          ls /usr/share/fonts/truetype/dejavu/ | head
+          python3 -c "import PIL; print('Pillow OK', PIL.__version__)"
+
+      - name: Install Codex 0.170.0
+        run: |
+          npm install -g @openai/codex@0.170.0
+          codex --version
+
+      - name: Write Codex config (Xingchi profile, no secret in this file)
+        run: |
+          mkdir -p ~/.codex
+          cat > ~/.codex/xingchi.config.toml <<'EOF'
+          model = "gpt-6.1-sol"
+          model_provider = "xingchi"
+          [model_providers.xingchi]
+          name = "Xingchi"
+          base_url = "https://api.xingchiapi.com/v1"
+          env_key = "XINGCHI_API_KEY"
+          wire_api = "responses"
+          EOF
+          cat > ~/.codex/config.toml <<EOF
+          [projects."$GITHUB_WORKSPACE/work/repo"]
+          trust_level = "trusted"
+          EOF
+
+      - name: Fail fast if the Xingchi secret is missing
+        run: |
+          if [ -z "${{ secrets.XINGCHI_API_KEY }}" ]; then
+            echo "XINGCHI_API_KEY repo secret is not set. Add it under Settings > Secrets and variables > Actions, then re-run."
+            exit 1
+          fi
+          echo "XINGCHI_API_KEY secret is present (value not shown)."
+
+      - name: Download kit and init entry repo
+        run: |
+          set -euo pipefail
+          mkdir -p work/kit work/repo
+          curl -sSL "https://make.fun/c/${COMPETITION}/kit" | tar xz -C work/kit
+          KIT_CLI=$(find work/kit -name makefun.mjs -path '*cli*' | head -1)
+          echo "kit cli: $KIT_CLI"
+          test -n "$KIT_CLI"
+          cd work/repo
+          git init -q
+          git config user.name "$HANDLE"
+          git config user.email "$HANDLE@localhost"
+          node "$GITHUB_WORKSPACE/$KIT_CLI" init --competition "$COMPETITION" --license MIT --wallet "$WALLET"
+
+      - name: Prepare prompt with runner paths
+        run: |
+          sed -e "s#__WORKSPACE__#$GITHUB_WORKSPACE#g" -e "s#__REPO__#$GITHUB_WORKSPACE/work/repo#g" prompt-agent94-news-image-20261120.txt > work/prompt-final.txt
+          wc -l work/prompt-final.txt
+
+      - name: Build with Codex (Xingchi gpt-6.1-sol)
+        env:
+          XINGCHI_API_KEY: ${{ secrets.XINGCHI_API_KEY }}
+        run: |
+          set -euo pipefail
+          cd work/repo
+          codex --profile xingchi exec --sandbox danger-full-access --skip-git-repo-check "$(cat ../prompt-final.txt)" < /dev/null | tee ../codex-build.log
+          echo "--- repo after build ---"
+          git log --oneline | head -5
+          git status --short | head -20
+
+      - name: Collect artifacts
+        if: always()
+        run: |
+          mkdir -p artifacts
+          ROLLOUT=$(ls -t ~/.codex/sessions/*/rollout-*.jsonl 2>/dev/null | head -1 || true)
+          if [ -n "$ROLLOUT" ]; then cp "$ROLLOUT" artifacts/rollout.jsonl; echo "rollout: $ROLLOUT"; else echo "NO ROLLOUT FOUND"; ls -R ~/.codex/sessions 2>/dev/null | head -20 || true; fi
+          if [ -d work/repo/.git ]; then tar czf artifacts/repo.tar.gz -C work repo; echo "repo tarball OK"; fi
+          cp work/codex-build.log artifacts/ 2>/dev/null || true
+          ls -la artifacts/
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-agent94-news-image-20261120
+          path: artifacts/
+          retention-days: 7

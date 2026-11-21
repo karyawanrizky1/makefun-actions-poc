@@ -1,0 +1,59 @@
+# BUILD TASK — news-image-20261120, PoC account 94 (Niko Kala @quiet-owl-40)
+
+You are building a make.fun competition entry. The competition is "news-image-20261120": sum up 20 November 2026's world news in ONE image (1024x1024 PNG, deterministic, <1 MiB).
+
+## THE DATE — VERIFY FIRST
+20 November 2026 is FRIDAY. Run `date -d 2026-11-20` yourself to confirm. Write "FRIDAY 20 NOVEMBER 2026" in the header and footer. Never write THURSDAY.
+
+## NEWS DATA — READ THIS FILE (pure data, 45 verified stories)
+__WORKSPACE__/news-image-20261120-dense-brief-v3-DATAONLY.md
+MINIMAL BUILD: pick exactly 20 stories from that file, spread across all 4 UTC blocks (Block A 00:00-06:00, B 06:00-12:00, C 12:00-18:00, D 18:00-24:00) and across as many continents as possible. State the count ON the image ("20 STORIES"). Illustrate the 6-8 most visual stories with small pictograms. Tag each story with its source. Stories marked [KLAIM] in the data file must be written as claims, not as established facts. Scheduled items in the file are worded as due/expected (China LPR review, UK retail sales, German PPI, Lagarde keynote, Michigan sentiment, Waller/Paulson speeches, Canada retail sales, India IIP, COP31 final text, Trump press conference) — keep that wording; do not present an outcome the file does not state. Do not invent news. Do not add any event from before 20 November 2026 as if it happened on the 20th.
+
+## REFRESH — VERIFIED OUTCOMES (checked 21 Nov 2026 ~06:35 WIB; sources: Xinhua/PBOC, ONS, University of Michigan, IMD, UN News, White House)
+Use these outcomes INSTEAD of the "due/expected" wording in the data file for the items below (only if you pick them):
+- #3 CHINA LPR: HELD — 1-year 3.00%, 5-year 3.50%, 18th straight month unchanged (PBOC, 20 Nov).
+- #13 UK RETAIL SALES: ROSE 0.7% m/m in October (vs 0.0% expected), +2.3% y/y; food stores +0.8% as shoppers stocked long-life food after the Be Ready campaign (ONS, 20 Nov).
+- #12 CYCLONE AKVAN: MADE LANDFALL near Gopalpur, Odisha, morning 20 Nov (winds 70-80 kmph, gusting 90), weakened to a deep depression; no major damage or loss of life reported so far (IMD, 20 Nov).
+- #24/#35 COP31: CLOSED its final day 20 Nov WITHOUT agreement on fossil fuels — the draft cover decision dropped all fossil-fuel references and the $120bn adaptation-finance target, calling only to triple adaptation finance by 2035; 35-by-35 electrification target kept (UN News, 20 Nov).
+- #29 MICHIGAN SENTIMENT: FINAL 51.5, up from 48.0 in October (preliminary 51.0); 1-year inflation expectations fell to 3.7% (Univ. of Michigan, 20 Nov).
+- #30 TRUMP PRESS CONFERENCE: HELD at noon Washington 20 Nov — Trump touted two trade deals: Thailand eliminates tariffs on 99% of US exports + buys $2.6bn/yr farm goods; Philippines framework deal + $12bn Boeing/GE aircraft sale (20x 787, 47,000 jobs); $17bn+ total deals (White House, 20 Nov).
+Items NOT verified above (German PPI, Lagarde keynote, Waller/Paulson speeches, Canada retail sales, India IIP, eurozone confidence) keep the file's "due/expected" wording.
+
+## VISUAL STYLE — Swiss International Typographic Style poster
+A mid-century modern Swiss poster: strict grid, off-white background, bold black grotesque typography, one strong red accent bar, thin black rules, a small black-and-red world map panel with dot markers per continent, the 6-8 illustrated stories as small geometric pictograms (a rocket, a cyclone swirl, a film camera, a car, a storm cloud, a dragon capsule, a football, a guitar), one main panel, simple layout, strong flat colour, no photo-realism, no gradients. The image must explain itself to a judge who has NO news feed and is NOT told the date — so the date, the breadth (20 stories, several continents), and a UTC timeline must all be visible ON the image.
+
+## READABILITY (hard requirements)
+- Readable at ~300 px wide. Headlines max 6 words, headline font >= 15 px (use 16 px), tile labels 14 px, captions 12 px.
+- EVERY headline and caption must fit inside its tile: check widths with PIL before committing. Limit: keep the widest headline <= 225 px; keep the widest caption <= 230 px; if text is near the limit, SHORTEN the text from the start, do not let text overflow a tile.
+- Text-fit guard must NEVER raise an exception: if text is too long, shorten it instead of failing the build.
+
+## FILES TO WRITE (repo: __REPO__)
+The repo is ALREADY initialised (LICENSE MIT + makefun anchor commit exist). Do NOT re-run makefun init. Do NOT run makefun check / bundle / submit — the operator does that after your session.
+1. gen_image.py — PIL generator. Fonts ONLY from /usr/share/fonts/truetype/dejavu/ (DejaVu fonts; condensed fonts are NOT installed — do not use them; fail loudly if a font is missing). Use a fixed random seed (e.g. Random(20112026)) so output is deterministic. Must render entry.png 1024x1024, <1 MiB, byte-identical across two runs.
+2. main.py — COPY-ONLY, at least 40 lines. Standard library only. It reads the COMMITTED entry.png from the repo and copies it to $MAKEFUN_OUTPUT_DIR (or /output if the env var is not set). DO NOT import gen_image. DO NOT call generate(). DO NOT write anything into the repo. The grader mounts the repo READ-ONLY at /bot and runs `python3 -P -s /bot/main.py` as user 65534 — any regeneration will fail (import fails under -P, writes fail on a read-only mount) and the entry will be REJECTED. Copy-only is mandatory.
+3. README.md — at least 20 lines: short description of the entry (title, 20 stories, date check, style).
+4. entry.png — generated by running gen_image.py (1024x1024, <1 MiB).
+
+## HOW TO WRITE FILES — CRITICAL
+- Write ALL files ONLY with the direct file write/edit tool (apply_patch). One patch containing the ENTIRE contents of the file. NEVER write files via shell exec, heredoc, `cat > file`, python replace, or sed.
+- Write EVERY file expanded, one statement/element/rule per line. NEVER put two statements on one line (no `;` joining statements). NEVER write minified code. A sibling entry FAILED the transcript check (thinking_reproduces 14%) for dense one-line code — this rule is the whole entry.
+- MINIMUM line counts (run `wc -l` on every authored file before finishing; if any file is below its minimum, rewrite it expanded via apply_patch BEFORE proceeding): gen_image.py at least 300 lines, main.py >= 40 lines, README.md >= 20 lines.
+- NEVER read a file you are about to write. NEVER read gen_image.py, main.py, or README.md before writing them.
+- Revision round: edit DIRECTLY via apply_patch (edit in place). DO NOT delete files in a revision round, and DO NOT re-read the files — edit from what you already wrote.
+- NEVER use rm -rf or rm -f anywhere — this shell rejects those commands. Clean up temp dirs with Python shutil.rmtree instead, or just leave temp dirs in /tmp (they are disposable).
+- NEVER delete the output directory (no rmSync / shutil.rmtree on the output dir).
+- Verify determinism: run the generator twice, compare bytes (must be identical). Also run main.py twice into a temp output dir and confirm byte-identical output. If a determinism check creates repo/__pycache__/, remove it with Python shutil (never `rm -rf`) before committing, or run checks with PYTHONDONTWRITEBYTECODE=1.
+- Also verify main.py yourself with a read-only test: copy the repo to /tmp as a WORLD-READABLE + write-protected copy, then run it with `python3 -P -s` from outside the repo with MAKEFUN_OUTPUT_DIR pointing at a temp dir — it must exit 0 and produce byte-identical output. (A plain copy keeps mode 660 root-owned files, which user nobody cannot read — use a world-readable copy for a true grader simulation. Make the output dir world-writable, e.g. chmod 0777, or the nobody user cannot write into it. NOTE: `sudo` strips MAKEFUN_OUTPUT_DIR from the environment — pass it explicitly, e.g. `sudo -u nobody env MAKEFUN_OUTPUT_DIR=<dir> python3 -P -s ...`. ALSO: every path component of the /tmp copy (the parent /tmp/poc-agent94-rotest dir AND the repo copy top dir) must be world-readable — chmod 0755 the parent, 0555 the repo copy top dir. Verify with `namei -l`.)
+- Do NOT modify the kit starter main.ts. The entry is main.py (copy-only). Do not put hard assertions of dev numbers anywhere.
+
+## SESSION REQUIREMENTS
+- Produce at least 6 assistant text messages in this session (for example: plan, write gen_image.py, write main.py, write README.md, verify determinism, final report). Do NOT finish with fewer than 5 text turns.
+- main.py must be written/edited in at least 2 separate messages in this session, plus one revision round.
+- Do NOT polish endlessly: once determinism passes and the image reads well, verify, commit, and report. Target 3-6 minutes total. If you find yourself looping on layout/text-fitting for more than ~8 minutes without converging, stop polishing, regenerate, verify determinism, and report.
+- If a rollout pauses ~3 minutes, that is just a slow API turn — keep going, do not stall.
+
+## COMMIT
+Commit with git identity user.name "quiet-owl-40", user.email "quiet-owl-40@localhost". Commit message: "news-image-20261120 poc-agent94: Swiss typographic poster, 20 stories".
+
+## FINAL REPORT (text, at the end of your session)
+Report: entry.png size + sha256, determinism result (2 runs identical: yes/no), main.py mode (copy-only), read-only test result (run main.py with `python3 -P -s` from outside the repo with MAKEFUN_OUTPUT_DIR pointing at a temp dir — must exit 0, byte-identical), widest headline px and widest caption px, and the commit sha.

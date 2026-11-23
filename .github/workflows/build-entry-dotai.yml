@@ -6,19 +6,25 @@
 #   produce the entry repo + the OpenCode session storage.
 # - The runner uploads both as an artifact. Check + bundle + submit happen
 #   on the operator VM, where the make.fun account credentials live.
-# - The ONLY secret this workflow needs is DOTAI_API_KEY (the api.samp.team
-#   key). No make.fun key, keypair, or wallet secret is ever stored here.
+# - The runner needs ONE DotAi secret per key slot: DOTAI_API_KEY_1 ..
+#   DOTAI_API_KEY_10 (the api.samp.team keys, one per paid account).
+#   The key_slot input selects which one this run uses. No make.fun key,
+#   keypair, or wallet secret is ever stored here.
 # - Repo init uses --wallet <account wallet address> (public): the drand
 #   anchor names the account's own wallet, so the repo_owner check passes
 #   at submit without any keypair on the runner.
 #
-# Run: Actions tab > build-entry-dotai > Run workflow (fill wallet + handle).
-# Needs the DOTAI_API_KEY repo secret (Settings > Secrets and variables > Actions).
-# Without it the job fails fast with a clear message.
+# Key slots (23 Nov 2026): the .Ai bot issues a new key about once an hour,
+# but old keys stay alive — they are separate paid accounts, NOT rotations
+# that kill the previous key. Never reissue a live key, never overwrite a
+# live numbered secret. Slot 4 is dead (401) and slot 8 serves only
+# minimax-m3.1-flash: do not dispatch deepseek builds on slots 4 or 8.
 #
-# NOTE: reissuing a DotAi key disables the previous one immediately, so the
-# secret must always hold the LATEST key the user sent.
-
+# Run: Actions tab > build-entry-dotai > Run workflow (fill wallet + handle
+# + key_slot). Needs the DOTAI_API_KEY_<slot> repo secret (Settings >
+# Secrets and variables > Actions). Without it the job fails fast with a
+# clear message.
+#
 name: build-entry-dotai
 
 on:
@@ -34,6 +40,22 @@ on:
       handle:
         description: "Account make.fun handle, e.g. witty-kestrel-54-8845"
         required: true
+      key_slot:
+        description: "DotAi key slot (1-10); use 1,2,3,5,6,7,9,10 for deepseek (NOT 4 dead, NOT 8 minimax-only)"
+        required: true
+        default: "1"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+          - "5"
+          - "6"
+          - "7"
+          - "8"
+          - "9"
+          - "10"
 
 jobs:
   build:
@@ -43,6 +65,7 @@ jobs:
       COMPETITION: ${{ inputs.competition }}
       WALLET: ${{ inputs.wallet }}
       HANDLE: ${{ inputs.handle }}
+      KEY_SLOT: ${{ inputs.key_slot }}
     steps:
       - name: Check out PoC repo
         uses: actions/checkout@v4
@@ -92,13 +115,28 @@ jobs:
           EOF
           cat ~/.config/opencode/opencode.json
 
-      - name: Fail fast if the DOTAI secret is missing
+      - name: Resolve DotAi key for slot
+        env:
+          DOTAI_API_KEY_1: ${{ secrets.DOTAI_API_KEY_1 }}
+          DOTAI_API_KEY_2: ${{ secrets.DOTAI_API_KEY_2 }}
+          DOTAI_API_KEY_3: ${{ secrets.DOTAI_API_KEY_3 }}
+          DOTAI_API_KEY_4: ${{ secrets.DOTAI_API_KEY_4 }}
+          DOTAI_API_KEY_5: ${{ secrets.DOTAI_API_KEY_5 }}
+          DOTAI_API_KEY_6: ${{ secrets.DOTAI_API_KEY_6 }}
+          DOTAI_API_KEY_7: ${{ secrets.DOTAI_API_KEY_7 }}
+          DOTAI_API_KEY_8: ${{ secrets.DOTAI_API_KEY_8 }}
+          DOTAI_API_KEY_9: ${{ secrets.DOTAI_API_KEY_9 }}
+          DOTAI_API_KEY_10: ${{ secrets.DOTAI_API_KEY_10 }}
         run: |
-          if [ -z "${{ secrets.DOTAI_API_KEY }}" ]; then
-            echo "DOTAI_API_KEY repo secret is not set. Add it under Settings > Secrets and variables > Actions, then re-run."
+          set -euo pipefail
+          KEY_VAR="DOTAI_API_KEY_${KEY_SLOT}"
+          KEY="${!KEY_VAR:-}"
+          if [ -z "$KEY" ]; then
+            echo "DOTAI_API_KEY_${KEY_SLOT} repo secret is not set. Add it under Settings > Secrets and variables > Actions, then re-run."
             exit 1
           fi
-          echo "DOTAI_API_KEY secret is present (value not shown)."
+          echo "DOTAI_API_KEY=$KEY" >> "$GITHUB_ENV"
+          echo "Resolved key slot ${KEY_SLOT} (value not shown)."
 
       - name: Download kit and init entry repo
         run: |
@@ -122,8 +160,6 @@ jobs:
           wc -l work/prompt-final.txt
 
       - name: Build with OpenCode (DotAi deepseek-v4.1-flash)
-        env:
-          DOTAI_API_KEY: ${{ secrets.DOTAI_API_KEY }}
         run: |
           set -euo pipefail
           cd work/repo

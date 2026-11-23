@@ -3,9 +3,13 @@
 # Design (23 Nov 2026) — same split as the Codex/Xingchi PoC:
 # - The runner ONLY builds: download kit, init repo, run OpenCode
 #   (hms/deepseek-v4.1-flash-free via https://100milionseek.top/v1),
-#   produce the entry repo + the OpenCode session storage.
+#   produce the entry repo + the OpenCode session store (opencode.db,
+#   read directly by `makefun bundle` on the VM).
 # - The runner uploads both as an artifact. Check + bundle + submit happen
 #   on the operator VM, where the make.fun account credentials live.
+#   VM side after the artifact lands: makefun bundle --no-discover
+#   --session opencode.db --repo <repo> --effort none --out transcripts.tar.gz,
+#   then check + submit.
 # - The ONLY secret this repo needs is HMS_API_KEY (the 100milionseek API key,
 #   shared across accounts). No make.fun key, keypair, or wallet secret is
 #   ever stored here.
@@ -85,7 +89,10 @@ jobs:
                 }
               }
             },
-            "model": "hms/deepseek-v4.1-flash-free"
+            "model": "hms/deepseek-v4.1-flash-free",
+            "permission": {
+              "external_directory": "allow"
+            }
           }
           EOF
           cat ~/.config/opencode/opencode.json
@@ -113,6 +120,11 @@ jobs:
           node "$GITHUB_WORKSPACE/$KIT_CLI" init --competition "$COMPETITION" --license MIT --wallet "$WALLET"
           echo "--- anchor check: freshness.json wallet must equal $WALLET ---"
           cat .makefun/freshness.json
+          # The agent must read the kit's RULES.txt, but OpenCode refuses
+          # reads outside the working directory when non-interactive, so
+          # keep a copy of the kit INSIDE the repo (the prompt points there).
+          cp -r ../kit ./kit
+          ls kit/
 
       - name: Prepare prompt with runner paths
         run: |
@@ -126,6 +138,9 @@ jobs:
           set -euo pipefail
           cd work/repo
           opencode run -m hms/deepseek-v4.1-flash-free "$(cat ../prompt-final.txt)" < /dev/null | tee ../opencode-build.log
+          # Fail loudly if the agent produced no entry (a silent no-op used
+          # to pass this step because `tee` masked the exit code).
+          test -f main.py && test -f entry.png || { echo "ERROR: entry files missing after build (main.py/entry.png)"; git status --short | head -20; exit 1; }
           echo "--- repo after build ---"
           git log --oneline | head -5
           git status --short | head -20
@@ -134,10 +149,14 @@ jobs:
         if: always()
         run: |
           mkdir -p artifacts
-          # OpenCode stores sessions under ~/.local/share/opencode/storage/session.
-          # Bundle the whole storage dir: an entry without its transcript cannot
-          # be bundled or submitted, so a silent miss wastes the whole run.
-          if [ -d ~/.local/share/opencode/storage/session ]; then tar czf artifacts/opencode-storage.tar.gz -C ~/.local/share/opencode storage; echo "opencode storage OK"; ls -R ~/.local/share/opencode/storage/session 2>/dev/null | head -20; else echo "ERROR: NO OPENCODE SESSION FOUND"; ls -R ~/.local/share/opencode 2>/dev/null | head -30 || true; exit 1; fi
+          # OpenCode records its sessions in ~/.local/share/opencode/opencode.db
+          # (1.x: session/message/part tables; 2.x: session_v2/session_message).
+          # `makefun bundle` reads that store directly, so ship the DB file:
+          # an entry without its transcript cannot be bundled or submitted,
+          # so a silent miss wastes the whole run.
+          if [ -f ~/.local/share/opencode/opencode.db ]; then cp ~/.local/share/opencode/opencode.db artifacts/opencode.db; cp ~/.local/share/opencode/opencode.db-wal artifacts/ 2>/dev/null || true; echo "opencode.db OK"; ls -la artifacts/opencode.db; else echo "ERROR: NO OPENCODE.DB FOUND"; ls -R ~/.local/share/opencode 2>/dev/null | head -30 || true; exit 1; fi
+          # Also ship the file-based message store when present (newer opencode).
+          if [ -d ~/.local/share/opencode/storage ]; then tar czf artifacts/opencode-storage.tar.gz -C ~/.local/share/opencode storage; echo "opencode storage OK"; fi
           if [ -d work/repo/.git ]; then tar czf artifacts/repo.tar.gz -C work repo; echo "repo tarball OK"; fi
           cp work/opencode-build.log artifacts/ 2>/dev/null || true
           cp work/prompt-final.txt artifacts/ 2>/dev/null || true

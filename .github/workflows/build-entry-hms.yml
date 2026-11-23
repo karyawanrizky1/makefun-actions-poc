@@ -1,0 +1,152 @@
+# Build a make.fun entry on GitHub Actions with 100milionseek DeepSeek via OpenCode.
+#
+# Design (23 Nov 2026) — same split as the Codex/Xingchi PoC:
+# - The runner ONLY builds: download kit, init repo, run OpenCode
+#   (hms/deepseek-v4.1-flash-free via https://100milionseek.top/v1),
+#   produce the entry repo + the OpenCode session storage.
+# - The runner uploads both as an artifact. Check + bundle + submit happen
+#   on the operator VM, where the make.fun account credentials live.
+# - The ONLY secret this repo needs is HMS_API_KEY (the 100milionseek API key,
+#   shared across accounts). No make.fun key, keypair, or wallet secret is
+#   ever stored here.
+# - Repo init uses --wallet <account wallet address> (public): the drand
+#   anchor names the account's own wallet, so the repo_owner check passes
+#   at submit without any keypair on the runner.
+#
+# Run: Actions tab > build-entry-hms > Run workflow (fill wallet + handle).
+# Needs the HMS_API_KEY repo secret (Settings > Secrets and variables > Actions).
+# Without it the job fails fast with a clear message.
+
+name: build-entry-hms
+
+on:
+  workflow_dispatch:
+    inputs:
+      competition:
+        description: "make.fun competition id"
+        required: true
+        default: "news-image-20261122"
+      wallet:
+        description: "Account Solana payout wallet (public)"
+        required: true
+      handle:
+        description: "Account make.fun handle, e.g. witty-kestrel-54-8845"
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      COMPETITION: ${{ inputs.competition }}
+      WALLET: ${{ inputs.wallet }}
+      HANDLE: ${{ inputs.handle }}
+    steps:
+      - name: Check out PoC repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install system deps (DejaVu fonts, Pillow)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-dejavu-core
+          python3 -m pip install --quiet --break-system-packages pillow
+          python3 -c "import PIL; print('Pillow OK', PIL.__version__)"
+
+      - name: Install OpenCode
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.opencode/bin:$PATH"
+          opencode --version
+
+      - name: Write OpenCode config (hms provider, no secret in this file)
+        run: |
+          mkdir -p ~/.config/opencode
+          cat > ~/.config/opencode/opencode.json <<'EOF'
+          {
+            "$schema": "https://opencode.ai/config.json",
+            "provider": {
+              "hms": {
+                "npm": "@ai-sdk/openai-compatible",
+                "name": "100milionseek",
+                "options": {
+                  "baseURL": "https://100milionseek.top/v1",
+                  "apiKey": "{env:HMS_API_KEY}"
+                },
+                "models": {
+                  "deepseek-v4.1-flash-free": {
+                    "name": "deepseek-v4.1-flash-free"
+                  }
+                }
+              }
+            },
+            "model": "hms/deepseek-v4.1-flash-free"
+          }
+          EOF
+          cat ~/.config/opencode/opencode.json
+
+      - name: Fail fast if the HMS secret is missing
+        run: |
+          if [ -z "${{ secrets.HMS_API_KEY }}" ]; then
+            echo "HMS_API_KEY repo secret is not set. Add it under Settings > Secrets and variables > Actions, then re-run."
+            exit 1
+          fi
+          echo "HMS_API_KEY secret is present (value not shown)."
+
+      - name: Download kit and init entry repo
+        run: |
+          set -euo pipefail
+          mkdir -p work/kit work/repo
+          curl -sSL "https://make.fun/c/${COMPETITION}/kit" | tar xz -C work/kit
+          KIT_CLI=$(find work/kit -name makefun.mjs -path '*cli*' | head -1)
+          echo "kit cli: $KIT_CLI"
+          test -n "$KIT_CLI"
+          cd work/repo
+          git init -q
+          git config user.name "$HANDLE"
+          git config user.email "$HANDLE@localhost"
+          node "$GITHUB_WORKSPACE/$KIT_CLI" init --competition "$COMPETITION" --license MIT --wallet "$WALLET"
+          echo "--- anchor check: freshness.json wallet must equal $WALLET ---"
+          cat .makefun/freshness.json
+
+      - name: Prepare prompt with runner paths
+        run: |
+          sed -e "s#__WORKSPACE__#$GITHUB_WORKSPACE#g" -e "s#__REPO__#$GITHUB_WORKSPACE/work/repo#g" -e "s#__COMPETITION__#${COMPETITION}#g" -e "s#__HANDLE__#${HANDLE}#g" -e "s#__WALLET__#${WALLET}#g" prompt-hms-news-image-20261122.txt > work/prompt-final.txt
+          wc -l work/prompt-final.txt
+
+      - name: Build with OpenCode (100milionseek deepseek-v4.1-flash-free)
+        env:
+          HMS_API_KEY: ${{ secrets.HMS_API_KEY }}
+        run: |
+          set -euo pipefail
+          cd work/repo
+          opencode run -m hms/deepseek-v4.1-flash-free "$(cat ../prompt-final.txt)" < /dev/null | tee ../opencode-build.log
+          echo "--- repo after build ---"
+          git log --oneline | head -5
+          git status --short | head -20
+
+      - name: Collect artifacts
+        if: always()
+        run: |
+          mkdir -p artifacts
+          # OpenCode stores sessions under ~/.local/share/opencode/storage/session.
+          # Bundle the whole storage dir: an entry without its transcript cannot
+          # be bundled or submitted, so a silent miss wastes the whole run.
+          if [ -d ~/.local/share/opencode/storage/session ]; then tar czf artifacts/opencode-storage.tar.gz -C ~/.local/share/opencode storage; echo "opencode storage OK"; ls -R ~/.local/share/opencode/storage/session 2>/dev/null | head -20; else echo "ERROR: NO OPENCODE SESSION FOUND"; ls -R ~/.local/share/opencode 2>/dev/null | head -30 || true; exit 1; fi
+          if [ -d work/repo/.git ]; then tar czf artifacts/repo.tar.gz -C work repo; echo "repo tarball OK"; fi
+          cp work/opencode-build.log artifacts/ 2>/dev/null || true
+          cp work/prompt-final.txt artifacts/ 2>/dev/null || true
+          ls -la artifacts/
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-${{ inputs.handle }}-${{ inputs.competition }}
+          path: artifacts/
+          retention-days: 7

@@ -1,6 +1,6 @@
 # BUILD TASK — __COMPETITION__, OpenCode + DotAi DeepSeek (GitHub Actions runner)
 
-You are building a make.fun competition entry. The competition is "__COMPETITION__": sum up 22 November 2026's world news in ONE image (1024x1024 PNG, deterministic, <1 MiB). Your account: handle __HANDLE__, Solana payout wallet __WALLET__. Work ONLY inside this repository directory: __REPO__. Kit (read-only reference, read RULES.txt first): __WORKSPACE__/work/kit. Read the kit's RULES.txt first (especially the image limits, the gate, and the Enter steps). Never print any key, private key, or keypair content; never put secrets in the repo.
+You are building a make.fun competition entry. The competition is "__COMPETITION__": sum up 22 November 2026's world news in ONE image (1024x1024 PNG, deterministic, <1 MiB). Your account: handle __HANDLE__, Solana payout wallet __WALLET__. Work ONLY inside this repository directory: __REPO__. Kit (read-only reference, read RULES.txt first): __REPO__/kit. Read the kit's RULES.txt first (especially the image limits, the gate, and the Enter steps). Never print any key, private key, or keypair content; never put secrets in the repo.
 
 ## THE DATE — VERIFY FIRST
 22 November 2026 is SUNDAY. Run `date -d 2026-11-22` yourself to confirm. Write "SUNDAY 22 NOVEMBER 2026" in the header and footer. Never write another weekday.

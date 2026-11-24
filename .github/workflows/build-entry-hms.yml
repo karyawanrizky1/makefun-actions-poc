@@ -11,7 +11,7 @@
 #   --session opencode.db --repo <repo> --effort none --out transcripts.tar.gz,
 #   then check + submit.
 # - The runner needs ONE 100milionseek secret per key slot:
-#   HMS_API_KEY_1 .. HMS_API_KEY_20 (one per HMS account, each
+#   HMS_API_KEY_1 .. HMS_API_KEY_30 (one per HMS account, each
 #   100M tokens/day, quota resets 00:00 UTC). The key_slot input
 #   selects which one this run uses. Slot N maps 1:1 to the local
 #   key file api_key_N. No make.fun key, keypair, or wallet secret
@@ -44,7 +44,7 @@ on:
         description: "Account make.fun handle, e.g. witty-kestrel-54-8845"
         required: true
       key_slot:
-        description: "HMS key slot (1-20); one slot = one HMS account (100M tokens/day)"
+        description: "HMS key slot (1-30); one slot = one HMS account (100M tokens/day)"
         required: true
         default: "1"
         type: choice
@@ -69,6 +69,16 @@ on:
           - "18"
           - "19"
           - "20"
+          - "21"
+          - "22"
+          - "23"
+          - "24"
+          - "25"
+          - "26"
+          - "27"
+          - "28"
+          - "29"
+          - "30"
 
 jobs:
   build:
@@ -153,6 +163,16 @@ jobs:
           HMS_API_KEY_18: ${{ secrets.HMS_API_KEY_18 }}
           HMS_API_KEY_19: ${{ secrets.HMS_API_KEY_19 }}
           HMS_API_KEY_20: ${{ secrets.HMS_API_KEY_20 }}
+          HMS_API_KEY_21: ${{ secrets.HMS_API_KEY_21 }}
+          HMS_API_KEY_22: ${{ secrets.HMS_API_KEY_22 }}
+          HMS_API_KEY_23: ${{ secrets.HMS_API_KEY_23 }}
+          HMS_API_KEY_24: ${{ secrets.HMS_API_KEY_24 }}
+          HMS_API_KEY_25: ${{ secrets.HMS_API_KEY_25 }}
+          HMS_API_KEY_26: ${{ secrets.HMS_API_KEY_26 }}
+          HMS_API_KEY_27: ${{ secrets.HMS_API_KEY_27 }}
+          HMS_API_KEY_28: ${{ secrets.HMS_API_KEY_28 }}
+          HMS_API_KEY_29: ${{ secrets.HMS_API_KEY_29 }}
+          HMS_API_KEY_30: ${{ secrets.HMS_API_KEY_30 }}
         run: |
           set -euo pipefail
           KEY_VAR="HMS_API_KEY_${KEY_SLOT}"

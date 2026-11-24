@@ -128,7 +128,7 @@ jobs:
 
       - name: Prepare prompt with runner paths
         run: |
-          sed -e "s#__WORKSPACE__#$GITHUB_WORKSPACE#g" -e "s#__REPO__#$GITHUB_WORKSPACE/work/repo#g" -e "s#__COMPETITION__#${COMPETITION}#g" -e "s#__HANDLE__#${HANDLE}#g" -e "s#__WALLET__#${WALLET}#g" prompt-hms-news-image-20261122.txt > work/prompt-final.txt
+          sed -e "s#__WORKSPACE__#$GITHUB_WORKSPACE#g" -e "s#__REPO__#$GITHUB_WORKSPACE/work/repo#g" -e "s#__COMPETITION__#${COMPETITION}#g" -e "s#__HANDLE__#${HANDLE}#g" -e "s#__WALLET__#${WALLET}#g" prompt-hms-${COMPETITION}.txt > work/prompt-final.txt
           wc -l work/prompt-final.txt
 
       - name: Build with OpenCode (100milionseek deepseek-v4.1-flash-free)

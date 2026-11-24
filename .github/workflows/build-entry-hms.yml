@@ -10,16 +10,23 @@
 #   VM side after the artifact lands: makefun bundle --no-discover
 #   --session opencode.db --repo <repo> --effort none --out transcripts.tar.gz,
 #   then check + submit.
-# - The ONLY secret this repo needs is HMS_API_KEY (the 100milionseek API key,
-#   shared across accounts). No make.fun key, keypair, or wallet secret is
-#   ever stored here.
+# - The runner needs ONE 100milionseek secret per key slot:
+#   HMS_API_KEY_1 .. HMS_API_KEY_20 (one per HMS account, each
+#   100M tokens/day, quota resets 00:00 UTC). The key_slot input
+#   selects which one this run uses. Slot N maps 1:1 to the local
+#   key file api_key_N. No make.fun key, keypair, or wallet secret
+#   is ever stored here.
+# - LEGACY: the old unsuffixed secret HMS_API_KEY (value = key 2)
+#   is NOT used by this workflow anymore. Do not dispatch with it;
+#   use slot 2 (HMS_API_KEY_2) instead.
 # - Repo init uses --wallet <account wallet address> (public): the drand
 #   anchor names the account's own wallet, so the repo_owner check passes
 #   at submit without any keypair on the runner.
 #
-# Run: Actions tab > build-entry-hms > Run workflow (fill wallet + handle).
-# Needs the HMS_API_KEY repo secret (Settings > Secrets and variables > Actions).
-# Without it the job fails fast with a clear message.
+# Run: Actions tab > build-entry-hms > Run workflow (fill wallet + handle
+# + key_slot). Needs the HMS_API_KEY_<slot> repo secret (Settings >
+# Secrets and variables > Actions). Without it the job fails fast with a
+# clear message.
 
 name: build-entry-hms
 
@@ -36,6 +43,32 @@ on:
       handle:
         description: "Account make.fun handle, e.g. witty-kestrel-54-8845"
         required: true
+      key_slot:
+        description: "HMS key slot (1-20); one slot = one HMS account (100M tokens/day)"
+        required: true
+        default: "1"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+          - "5"
+          - "6"
+          - "7"
+          - "8"
+          - "9"
+          - "10"
+          - "11"
+          - "12"
+          - "13"
+          - "14"
+          - "15"
+          - "16"
+          - "17"
+          - "18"
+          - "19"
+          - "20"
 
 jobs:
   build:
@@ -45,6 +78,7 @@ jobs:
       COMPETITION: ${{ inputs.competition }}
       WALLET: ${{ inputs.wallet }}
       HANDLE: ${{ inputs.handle }}
+      KEY_SLOT: ${{ inputs.key_slot }}
     steps:
       - name: Check out PoC repo
         uses: actions/checkout@v4
@@ -97,13 +131,38 @@ jobs:
           EOF
           cat ~/.config/opencode/opencode.json
 
-      - name: Fail fast if the HMS secret is missing
+      - name: Resolve HMS key for slot
+        env:
+          HMS_API_KEY_1: ${{ secrets.HMS_API_KEY_1 }}
+          HMS_API_KEY_2: ${{ secrets.HMS_API_KEY_2 }}
+          HMS_API_KEY_3: ${{ secrets.HMS_API_KEY_3 }}
+          HMS_API_KEY_4: ${{ secrets.HMS_API_KEY_4 }}
+          HMS_API_KEY_5: ${{ secrets.HMS_API_KEY_5 }}
+          HMS_API_KEY_6: ${{ secrets.HMS_API_KEY_6 }}
+          HMS_API_KEY_7: ${{ secrets.HMS_API_KEY_7 }}
+          HMS_API_KEY_8: ${{ secrets.HMS_API_KEY_8 }}
+          HMS_API_KEY_9: ${{ secrets.HMS_API_KEY_9 }}
+          HMS_API_KEY_10: ${{ secrets.HMS_API_KEY_10 }}
+          HMS_API_KEY_11: ${{ secrets.HMS_API_KEY_11 }}
+          HMS_API_KEY_12: ${{ secrets.HMS_API_KEY_12 }}
+          HMS_API_KEY_13: ${{ secrets.HMS_API_KEY_13 }}
+          HMS_API_KEY_14: ${{ secrets.HMS_API_KEY_14 }}
+          HMS_API_KEY_15: ${{ secrets.HMS_API_KEY_15 }}
+          HMS_API_KEY_16: ${{ secrets.HMS_API_KEY_16 }}
+          HMS_API_KEY_17: ${{ secrets.HMS_API_KEY_17 }}
+          HMS_API_KEY_18: ${{ secrets.HMS_API_KEY_18 }}
+          HMS_API_KEY_19: ${{ secrets.HMS_API_KEY_19 }}
+          HMS_API_KEY_20: ${{ secrets.HMS_API_KEY_20 }}
         run: |
-          if [ -z "${{ secrets.HMS_API_KEY }}" ]; then
-            echo "HMS_API_KEY repo secret is not set. Add it under Settings > Secrets and variables > Actions, then re-run."
+          set -euo pipefail
+          KEY_VAR="HMS_API_KEY_${KEY_SLOT}"
+          KEY="${!KEY_VAR:-}"
+          if [ -z "$KEY" ]; then
+            echo "HMS_API_KEY_${KEY_SLOT} repo secret is not set. Add it under Settings > Secrets and variables > Actions, then re-run."
             exit 1
           fi
-          echo "HMS_API_KEY secret is present (value not shown)."
+          echo "HMS_API_KEY=$KEY" >> "$GITHUB_ENV"
+          echo "Resolved key slot ${KEY_SLOT} (value not shown)."
 
       - name: Download kit and init entry repo
         run: |
@@ -132,8 +191,6 @@ jobs:
           wc -l work/prompt-final.txt
 
       - name: Build with OpenCode (100milionseek deepseek-v4.1-flash-free)
-        env:
-          HMS_API_KEY: ${{ secrets.HMS_API_KEY }}
         run: |
           set -euo pipefail
           cd work/repo

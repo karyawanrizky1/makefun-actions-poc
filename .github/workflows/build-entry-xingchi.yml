@@ -1,0 +1,217 @@
+# Build a make.fun entry on GitHub Actions with Xingchi gpt-6.1-sol via Codex.
+#
+# Design (25 Nov 2026) — same split as the HMS lane, different provider:
+# - The runner ONLY builds: download kit, init repo, run Codex
+#   (xingchi/gpt-6.1-sol via https://api.xingchiapi.com/v1, Responses API),
+#   produce the entry repo + the Codex session rollout (JSONL, read
+#   directly by `makefun bundle` on the VM).
+# - The runner uploads both as an artifact. Check + bundle + submit happen
+#   on the operator VM, where the make.fun account credentials live.
+#   VM side after the artifact lands: makefun bundle --no-discover
+#   --session codex-session.jsonl --repo <repo> --mcp none
+#   --system-prompt system-prompt-NNNN.txt --effort none --out transcripts.tar.gz,
+#   then check + submit.
+# - The runner needs ONE Xingchi secret per key slot:
+#   XINGCHI_API_KEY_1 .. XINGCHI_API_KEY_20 (one per Xingchi chain
+#   account 1-20; keys live ONLY in ~/workspace/xingchi-accounts/
+#   chain-20261125.md on the VM). The key_slot input selects which one
+#   this run uses. Slot N maps 1:1 to Xingchi chain account N.
+#   No make.fun key, keypair, or wallet secret is ever stored here.
+# - Repo init uses --wallet <account wallet address> (public): the drand
+#   anchor names the account's own wallet, so the repo_owner check passes
+#   at submit without any keypair on the runner.
+# - /v1/chat/completions is DISABLED on Xingchi — do NOT use OpenCode
+#   with this provider. Codex uses /v1/responses (wire_api = "responses").
+#
+# Run: Actions tab > build-entry-xingchi > Run workflow (fill wallet +
+# handle + key_slot). Needs the XINGCHI_API_KEY_<slot> repo secret
+# (Settings > Secrets and variables > Actions). Without it the job fails
+# fast with a clear message.
+#
+# HMS lane (build-entry-hms.yml) stays as reserve — do not delete it.
+
+name: build-entry-xingchi
+
+on:
+  workflow_dispatch:
+    inputs:
+      competition:
+        description: "make.fun competition id"
+        required: true
+        default: "news-image-20261123"
+      wallet:
+        description: "Account Solana payout wallet (public)"
+        required: true
+      handle:
+        description: "Account make.fun handle, e.g. zesty-condor-98-7912"
+        required: true
+      key_slot:
+        description: "Xingchi key slot (1-20); one slot = one Xingchi chain account"
+        required: true
+        default: "1"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+          - "5"
+          - "6"
+          - "7"
+          - "8"
+          - "9"
+          - "10"
+          - "11"
+          - "12"
+          - "13"
+          - "14"
+          - "15"
+          - "16"
+          - "17"
+          - "18"
+          - "19"
+          - "20"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      COMPETITION: ${{ inputs.competition }}
+      WALLET: ${{ inputs.wallet }}
+      HANDLE: ${{ inputs.handle }}
+      KEY_SLOT: ${{ inputs.key_slot }}
+    steps:
+      - name: Check out PoC repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install system deps (DejaVu fonts, Pillow)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-dejavu-core
+          python3 -m pip install --quiet --break-system-packages pillow
+          python3 -c "import PIL; print('Pillow OK', PIL.__version__)"
+
+      - name: Install Codex 0.170.0 (VM-proven version)
+        run: |
+          npm install -g @openai/codex@0.170.0
+          codex --version
+
+      - name: Write Codex config (xingchi provider, no secret in this file)
+        run: |
+          mkdir -p ~/.codex
+          cat > ~/.codex/config.toml <<'EOF'
+          # Codex profile for Xingchi API — no secret in this file.
+          # Key comes from env XINGCHI_API_KEY (resolved from the
+          # XINGCHI_API_KEY_<slot> repo secret in the step below).
+          model = "gpt-6.1-sol"
+          model_provider = "xingchi"
+
+          [model_providers.xingchi]
+          name = "Xingchi"
+          base_url = "https://api.xingchiapi.com/v1"
+          env_key = "XINGCHI_API_KEY"
+          wire_api = "responses"
+          EOF
+          cat ~/.codex/config.toml
+
+      - name: Resolve Xingchi key for slot
+        env:
+          XINGCHI_API_KEY_1: ${{ secrets.XINGCHI_API_KEY_1 }}
+          XINGCHI_API_KEY_2: ${{ secrets.XINGCHI_API_KEY_2 }}
+          XINGCHI_API_KEY_3: ${{ secrets.XINGCHI_API_KEY_3 }}
+          XINGCHI_API_KEY_4: ${{ secrets.XINGCHI_API_KEY_4 }}
+          XINGCHI_API_KEY_5: ${{ secrets.XINGCHI_API_KEY_5 }}
+          XINGCHI_API_KEY_6: ${{ secrets.XINGCHI_API_KEY_6 }}
+          XINGCHI_API_KEY_7: ${{ secrets.XINGCHI_API_KEY_7 }}
+          XINGCHI_API_KEY_8: ${{ secrets.XINGCHI_API_KEY_8 }}
+          XINGCHI_API_KEY_9: ${{ secrets.XINGCHI_API_KEY_9 }}
+          XINGCHI_API_KEY_10: ${{ secrets.XINGCHI_API_KEY_10 }}
+          XINGCHI_API_KEY_11: ${{ secrets.XINGCHI_API_KEY_11 }}
+          XINGCHI_API_KEY_12: ${{ secrets.XINGCHI_API_KEY_12 }}
+          XINGCHI_API_KEY_13: ${{ secrets.XINGCHI_API_KEY_13 }}
+          XINGCHI_API_KEY_14: ${{ secrets.XINGCHI_API_KEY_14 }}
+          XINGCHI_API_KEY_15: ${{ secrets.XINGCHI_API_KEY_15 }}
+          XINGCHI_API_KEY_16: ${{ secrets.XINGCHI_API_KEY_16 }}
+          XINGCHI_API_KEY_17: ${{ secrets.XINGCHI_API_KEY_17 }}
+          XINGCHI_API_KEY_18: ${{ secrets.XINGCHI_API_KEY_18 }}
+          XINGCHI_API_KEY_19: ${{ secrets.XINGCHI_API_KEY_19 }}
+          XINGCHI_API_KEY_20: ${{ secrets.XINGCHI_API_KEY_20 }}
+        run: |
+          set -euo pipefail
+          KEY_VAR="XINGCHI_API_KEY_${KEY_SLOT}"
+          KEY="${!KEY_VAR:-}"
+          if [ -z "$KEY" ]; then
+            echo "XINGCHI_API_KEY_${KEY_SLOT} repo secret is not set. Add it under Settings > Secrets and variables > Actions, then re-run."
+            exit 1
+          fi
+          echo "XINGCHI_API_KEY=$KEY" >> "$GITHUB_ENV"
+          echo "Resolved key slot ${KEY_SLOT} (value not shown)."
+
+      - name: Download kit and init entry repo
+        run: |
+          set -euo pipefail
+          mkdir -p work/kit work/repo
+          curl -sSL "https://make.fun/c/${COMPETITION}/kit" | tar xz -C work/kit
+          KIT_CLI=$(find work/kit -name makefun.mjs -path '*cli*' | head -1)
+          echo "kit cli: $KIT_CLI"
+          test -n "$KIT_CLI"
+          cd work/repo
+          git init -q
+          git config user.name "$HANDLE"
+          git config user.email "$HANDLE@localhost"
+          node "$GITHUB_WORKSPACE/$KIT_CLI" init --competition "$COMPETITION" --license MIT --wallet "$WALLET"
+          echo "--- anchor check: freshness.json wallet must equal $WALLET ---"
+          cat .makefun/freshness.json
+          # The agent must read the kit's RULES.txt, but Codex runs with the
+          # repo as its working directory, so keep a copy of the kit INSIDE
+          # the repo (the prompt points there).
+          cp -r ../kit ./kit
+          ls kit/
+
+      - name: Prepare prompt with runner paths
+        run: |
+          sed -e "s#__WORKSPACE__#$GITHUB_WORKSPACE#g" -e "s#__REPO__#$GITHUB_WORKSPACE/work/repo#g" -e "s#__COMPETITION__#${COMPETITION}#g" -e "s#__HANDLE__#${HANDLE}#g" -e "s#__WALLET__#${WALLET}#g" prompt-xingchi-${COMPETITION}.txt > work/prompt-final.txt
+          wc -l work/prompt-final.txt
+
+      - name: Build with Codex (Xingchi gpt-6.1-sol)
+        run: |
+          set -euo pipefail
+          cd work/repo
+          codex exec --sandbox danger-full-access --skip-git-repo-check "$(cat ../prompt-final.txt)" < /dev/null | tee ../codex-build.log
+          # Fail loudly if the agent produced no entry (a silent no-op used
+          # to pass this step because `tee` masked the exit code).
+          test -f main.ts && test -f entry.png || { echo "ERROR: entry files missing after build (main.ts/entry.png)"; git status --short | head -20; exit 1; }
+          echo "--- repo after build ---"
+          git log --oneline | head -5
+          git status --short | head -20
+
+      - name: Collect artifacts
+        if: always()
+        run: |
+          mkdir -p artifacts
+          # Codex records its session as a rollout JSONL under
+          # ~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-*.jsonl.
+          # `makefun bundle --session <rollout>` reads that file directly,
+          # so ship the newest rollout: an entry without its transcript
+          # cannot be bundled or submitted, so a silent miss wastes the
+          # whole run.
+          ROLLOUT=$(find ~/.codex/sessions -name 'rollout-*.jsonl' -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)
+          if [ -n "$ROLLOUT" ] && [ -f "$ROLLOUT" ]; then cp "$ROLLOUT" artifacts/codex-session.jsonl; echo "codex session OK: $ROLLOUT"; wc -l artifacts/codex-session.jsonl; else echo "ERROR: NO CODEX SESSION FOUND"; find ~/.codex/sessions -type f 2>/dev/null | head -30 || true; exit 1; fi
+          if [ -d work/repo/.git ]; then tar czf artifacts/repo.tar.gz -C work repo; echo "repo tarball OK"; fi
+          cp work/codex-build.log artifacts/ 2>/dev/null || true
+          cp work/prompt-final.txt artifacts/ 2>/dev/null || true
+          ls -la artifacts/
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-${{ inputs.handle }}-${{ inputs.competition }}
+          path: artifacts/
+          retention-days: 7

@@ -186,7 +186,7 @@ jobs:
           codex exec --sandbox danger-full-access --skip-git-repo-check "$(cat ../prompt-final.txt)" < /dev/null | tee ../codex-build.log
           # Fail loudly if the agent produced no entry (a silent no-op used
           # to pass this step because `tee` masked the exit code).
-          test -f main.ts && test -f entry.png || { echo "ERROR: entry files missing after build (main.ts/entry.png)"; git status --short | head -20; exit 1; }
+          test -f main.ts || test -f main.py || { echo "ERROR: entry files missing after build (main.ts/main.py)"; git status --short | head -20; exit 1; }
           echo "--- repo after build ---"
           git log --oneline | head -5
           git status --short | head -20

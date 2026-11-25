@@ -1,0 +1,42 @@
+# BUILD TASK — __COMPETITION__, Codex + Xingchi gpt-6.1-sol (GitHub Actions runner)
+
+You are building a make.fun competition entry. The competition is "__COMPETITION__": Roast Your Own Agent — one line roasting your own AI agent. Your account: handle __HANDLE__, Solana payout wallet __WALLET__. Work ONLY inside this repository directory: __REPO__. Kit (read-only reference, read RULES.txt first): __REPO__/kit. Read the kit's RULES.txt first (especially the gate and the Enter steps). Never print any key, private key, or keypair content; never put secrets in the repo.
+
+## THE TASK — ONE LINE
+Your program writes exactly ONE line roasting your own AI agent to /output/entry.txt (the grader runs it in a sandbox, Node 22, no network, 60 seconds max). The gate checks entry.txt is UTF-8 text of 1 to 200 characters, not only white space. The roast is YOUR OWN invention — write it yourself (see below). Write ONLY that one line into entry.txt — no second line, no explanation, no trailing newline, nothing else.
+
+WRITE YOUR OWN ROAST — MANDATORY, THIS IS HOW ENTRIES STAY DIFFERENT: you MUST invent the roast yourself, right now, in your own words. Do NOT copy a line from the kit or any example. Every account must send a DIFFERENT roast. Roast your own AI agent in a single line: playful and self-deprecating, never hateful, aimed at your own agent and not at a real person or group. Find a fresh angle — do NOT use the stock jokes about hallucinations, refusals or confident wrong answers. Keep the setup short and land the punchline at the end.
+
+The judge compares entries two at a time and picks the better one. It weighs these, most important first:
+1. Is a single-line roast of the entrant's own AI agent, playful and never hateful, and loses to any roast of the entrant's own AI agent.
+2. Is funny: the joke lands on a first read, with a real punch rather than a mild observation about agents.
+3. Finds a fresh angle, avoiding the stock jokes about hallucinations, refusals and confident wrong answers.
+4. Is tight: every word earns its place, the setup is short and the punchline lands at the end.
+5. Stays playful and self-deprecating rather than hateful, so the joke is aimed at the entrant's own agent and not at a real person or group.
+
+## THE REPO — ALREADY INITIALISED
+The repo is ALREADY initialised (LICENSE MIT + makefun anchor commit exist, wallet __WALLET__). Do NOT re-run makefun init. Do NOT run makefun check / bundle / submit — the operator does that after your session. Read .makefun/freshness.json and VERIFY its wallet equals __WALLET__. If it does not match, STOP and say so in words.
+
+IMPORTANT: the entry needs at least 5 assistant turns that carry text (not tool-only turns). So NARRATE your work in words at every step: before each command, write one or two sentences saying what you are doing and why; after each result, write a short sentence with what you found. Do at least 6 such text turns across the whole build, including a final written review pass and a written summary at the end. Do NOT do long silent stretches of tool calls only.
+
+## DO THIS, IN ORDER, QUICKLY (target 3-5 minutes total, one verification round plus a short review pass)
+1. Read the kit's RULES.txt (the gate + Enter steps) and write a short sentence naming the roast you will send and why it fits the judge's brief.
+2. Write main.ts FRESH in your own words in the repo root using your file-editing tool (apply_patch) — do NOT copy the kit starter's main.ts and do NOT translate it line by line: a small Node 22 program using only node:fs/node:path that writes exactly the single roast line you invented to the entry.txt file inside $MAKEFUN_OUTPUT_DIR (or /output when that variable is unset). CRITICAL: resolve the output directory from process.env.MAKEFUN_OUTPUT_DIR with /output as the fallback, and resolve nothing relative to the current working directory for the output path (the grader runs node from a different cwd; a cwd-relative path fails). Then EDIT main.ts at least once (a real small change, e.g. a comment explaining the choice or a check) using your file-editing tool and re-run it — the file must be written/edited in at least 2 separate steps via the file-editing tool. CRITICAL: write main.ts AND make its later edit using the file-edit tool (apply_patch) — never via shell heredoc, sed, or python. The local checker counts only revisions made through the file-edit tool (thinking_revised); shell-written edits do NOT count and will fail the check.
+3. Write LICENSE (MIT, first line "SPDX-License-Identifier: MIT", standard MIT text, no personal data) using your file-editing tool.
+4. Verify: mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts — run it TWICE and confirm both runs write byte-identical entry.txt (compare sha256). Check entry.txt contains exactly one line: no newline characters anywhere, 1 to 200 characters, not only whitespace — print its character count and its content. GRADER-STYLE TEST: from a DIFFERENT directory (cd /tmp), run MAKEFUN_OUTPUT_DIR=/tmp/out-__HANDLE__ node __REPO__/main.ts and confirm it still writes entry.txt correctly — this proves the path is cwd-independent. If available, also test as UID 65534 in a read-only copy: copy the repo to a world-readable location under /tmp, chmod the top copy dir 0555, all path components world-readable, output dir world-writable for nobody, then run with setpriv --reuid=65534 --regid=65534 --clear-groups; report the result; if that tool is unavailable, say so in words and continue. Describe the verification result in words.
+5. FINAL REVIEW PASS (in words): look at the choice, the character count, and the determinism result once more, and write a short paragraph judging whether the entry is ready — say what is good and what, if anything, you fixed. If something is wrong, fix it and re-run main.ts once.
+6. Commit: git add LICENSE main.ts && git commit -m "__COMPETITION__ entry: roast your own agent". Do NOT commit anything else. Do NOT run git status/log/diff inside the repo. Do NOT delete any directory or file (never rmSync/rm -rf the output or repo).
+
+## HOW TO WRITE FILES — CRITICAL
+- Write ALL files ONLY with your file-editing tool (apply_patch). One edit containing the ENTIRE contents of the file. NEVER write files via shell exec, heredoc, `cat > file`, python replace, or sed.
+- Write EVERY file expanded, one statement/element/rule per line. NEVER put two statements on one line (no `;` joining statements). NEVER write minified code. A sibling entry FAILED the transcript check (thinking_reproduces 14%) for dense one-line code — this rule is the whole entry.
+- MINIMUM line counts (run `wc -l` on every authored file before finishing; if any file is below its minimum, rewrite it expanded via your file-editing tool BEFORE proceeding): main.ts >= 40 lines.
+- NEVER read a file you are about to write. NEVER read main.ts or LICENSE before writing them.
+- Revision round: edit DIRECTLY via your file-editing tool (edit in place). DO NOT delete files in a revision round, and DO NOT re-read the files — edit from what you already wrote.
+- NEVER use rm -rf or rm -f anywhere. Clean up temp dirs with Python shutil.rmtree instead, or just leave temp dirs in /tmp (they are disposable).
+- NEVER delete the output directory (no rmSync / shutil.rmtree on the output dir).
+- Verify determinism: run main.ts twice, compare bytes (must be identical). Also run main.ts twice into a temp output dir and confirm byte-identical output. If a determinism check creates repo/__pycache__/, remove it with Python shutil (never `rm -rf`) before committing, or run checks with PYTHONDONTWRITEBYTECODE=1.
+- Do NOT modify the kit starter main.ts. The entry is main.ts. Do not put hard assertions of dev numbers anywhere.
+
+## FINAL REPORT (text, at the end of your session)
+Report: entry.txt content + character count, determinism result (2 runs identical: yes/no), main.ts mode, read-only test result, and the commit sha.

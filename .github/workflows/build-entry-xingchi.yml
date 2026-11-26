@@ -12,8 +12,8 @@
 #   --system-prompt system-prompt-NNNN.txt --effort none --out transcripts.tar.gz,
 #   then check + submit.
 # - The runner needs ONE Xingchi secret per key slot:
-#   XINGCHI_API_KEY_1 .. XINGCHI_API_KEY_20 (one per Xingchi chain
-#   account 1-20; keys live ONLY in ~/workspace/xingchi-accounts/
+#   XINGCHI_API_KEY_1 .. XINGCHI_API_KEY_54 (one per Xingchi chain
+#   account 1-54; keys live ONLY in ~/workspace/xingchi-accounts/
 #   chain-20261125.md on the VM). The key_slot input selects which one
 #   this run uses. Slot N maps 1:1 to Xingchi chain account N.
 #   No make.fun key, keypair, or wallet secret is ever stored here.
@@ -46,7 +46,7 @@ on:
         description: "Account make.fun handle, e.g. zesty-condor-98-7912"
         required: true
       key_slot:
-        description: "Xingchi key slot (1-20); one slot = one Xingchi chain account"
+        description: "Xingchi key slot (1-54); one slot = one Xingchi chain account"
         required: true
         default: "1"
         type: choice
@@ -71,6 +71,40 @@ on:
           - "18"
           - "19"
           - "20"
+          - "21"
+          - "22"
+          - "23"
+          - "24"
+          - "25"
+          - "26"
+          - "27"
+          - "28"
+          - "29"
+          - "30"
+          - "31"
+          - "32"
+          - "33"
+          - "34"
+          - "35"
+          - "36"
+          - "37"
+          - "38"
+          - "39"
+          - "40"
+          - "41"
+          - "42"
+          - "43"
+          - "44"
+          - "45"
+          - "46"
+          - "47"
+          - "48"
+          - "49"
+          - "50"
+          - "51"
+          - "52"
+          - "53"
+          - "54"
 
 jobs:
   build:
@@ -142,6 +176,40 @@ jobs:
           XINGCHI_API_KEY_18: ${{ secrets.XINGCHI_API_KEY_18 }}
           XINGCHI_API_KEY_19: ${{ secrets.XINGCHI_API_KEY_19 }}
           XINGCHI_API_KEY_20: ${{ secrets.XINGCHI_API_KEY_20 }}
+          XINGCHI_API_KEY_21: ${{ secrets.XINGCHI_API_KEY_21 }}
+          XINGCHI_API_KEY_22: ${{ secrets.XINGCHI_API_KEY_22 }}
+          XINGCHI_API_KEY_23: ${{ secrets.XINGCHI_API_KEY_23 }}
+          XINGCHI_API_KEY_24: ${{ secrets.XINGCHI_API_KEY_24 }}
+          XINGCHI_API_KEY_25: ${{ secrets.XINGCHI_API_KEY_25 }}
+          XINGCHI_API_KEY_26: ${{ secrets.XINGCHI_API_KEY_26 }}
+          XINGCHI_API_KEY_27: ${{ secrets.XINGCHI_API_KEY_27 }}
+          XINGCHI_API_KEY_28: ${{ secrets.XINGCHI_API_KEY_28 }}
+          XINGCHI_API_KEY_29: ${{ secrets.XINGCHI_API_KEY_29 }}
+          XINGCHI_API_KEY_30: ${{ secrets.XINGCHI_API_KEY_30 }}
+          XINGCHI_API_KEY_31: ${{ secrets.XINGCHI_API_KEY_31 }}
+          XINGCHI_API_KEY_32: ${{ secrets.XINGCHI_API_KEY_32 }}
+          XINGCHI_API_KEY_33: ${{ secrets.XINGCHI_API_KEY_33 }}
+          XINGCHI_API_KEY_34: ${{ secrets.XINGCHI_API_KEY_34 }}
+          XINGCHI_API_KEY_35: ${{ secrets.XINGCHI_API_KEY_35 }}
+          XINGCHI_API_KEY_36: ${{ secrets.XINGCHI_API_KEY_36 }}
+          XINGCHI_API_KEY_37: ${{ secrets.XINGCHI_API_KEY_37 }}
+          XINGCHI_API_KEY_38: ${{ secrets.XINGCHI_API_KEY_38 }}
+          XINGCHI_API_KEY_39: ${{ secrets.XINGCHI_API_KEY_39 }}
+          XINGCHI_API_KEY_40: ${{ secrets.XINGCHI_API_KEY_40 }}
+          XINGCHI_API_KEY_41: ${{ secrets.XINGCHI_API_KEY_41 }}
+          XINGCHI_API_KEY_42: ${{ secrets.XINGCHI_API_KEY_42 }}
+          XINGCHI_API_KEY_43: ${{ secrets.XINGCHI_API_KEY_43 }}
+          XINGCHI_API_KEY_44: ${{ secrets.XINGCHI_API_KEY_44 }}
+          XINGCHI_API_KEY_45: ${{ secrets.XINGCHI_API_KEY_45 }}
+          XINGCHI_API_KEY_46: ${{ secrets.XINGCHI_API_KEY_46 }}
+          XINGCHI_API_KEY_47: ${{ secrets.XINGCHI_API_KEY_47 }}
+          XINGCHI_API_KEY_48: ${{ secrets.XINGCHI_API_KEY_48 }}
+          XINGCHI_API_KEY_49: ${{ secrets.XINGCHI_API_KEY_49 }}
+          XINGCHI_API_KEY_50: ${{ secrets.XINGCHI_API_KEY_50 }}
+          XINGCHI_API_KEY_51: ${{ secrets.XINGCHI_API_KEY_51 }}
+          XINGCHI_API_KEY_52: ${{ secrets.XINGCHI_API_KEY_52 }}
+          XINGCHI_API_KEY_53: ${{ secrets.XINGCHI_API_KEY_53 }}
+          XINGCHI_API_KEY_54: ${{ secrets.XINGCHI_API_KEY_54 }}
         run: |
           set -euo pipefail
           KEY_VAR="XINGCHI_API_KEY_${KEY_SLOT}"
